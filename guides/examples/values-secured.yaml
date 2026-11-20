@@ -1,0 +1,85 @@
+# Password authentication, shared secret and file-based access control,
+# behind a load balancer or ingress that terminates TLS.
+# Chart: trino 1.45.0 (Trino 484). Layer on top of another values file.
+#
+# Create these Secrets first (names are examples):
+#   trino-internal                  key shared-secret   -> openssl rand 512 | base64 -w 0
+#   trino-password-authentication   key password.db     -> htpasswd -B -C 10 -c password.db <user>
+#   trino-groups-authentication     key group.db        -> lines "group:user1,user2"
+# See guides/11-security.md.
+#
+# With an authentication type plus http-server.process-forwarded=true, Trino
+# refuses plain HTTP requests to the coordinator. Clients must come through the
+# TLS proxy. The metrics scrape stays on plain HTTP inside the cluster, so
+# management.user below serves management endpoints as a fixed read-only user.
+# The NetworkPolicy limits who can reach the port.
+#
+# IMPORTANT: Helm merges maps but replaces lists. additionalConfigProperties
+# (and env, additionalExchangeManagerProperties) are lists. If your base file
+# also sets them, copy the entries below into the base file's list instead of
+# relying on layering, or the base entries are lost.
+
+server:
+  config:
+    authenticationType: PASSWORD
+
+auth:
+  passwordAuthSecret: trino-password-authentication
+  groupsAuthSecret: trino-groups-authentication
+  refreshPeriod: 30s
+
+env:
+  - name: TRINO_SHARED_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: trino-internal
+        key: shared-secret
+
+additionalConfigProperties:
+  - internal-communication.shared-secret=${ENV:TRINO_SHARED_SECRET}
+  # TLS ends at the proxy; trust X-Forwarded-* headers from it
+  - http-server.process-forwarded=true
+  # fixed user for management endpoints such as /metrics on plain HTTP
+  - management.user=prometheus
+
+accessControl:
+  type: configmap
+  refreshPeriod: 60s
+  configFile: rules.json
+  rules:
+    rules.json: |-
+      {
+        "catalogs": [
+          {"group": "admins", "catalog": ".*", "allow": "all"},
+          {"group": "analysts", "catalog": "(hive|iceberg)", "allow": "read-only"},
+          {"catalog": "system", "allow": "read-only"}
+        ],
+        "queries": [
+          {"group": "admins", "allow": ["execute", "kill", "view"]},
+          {"allow": ["execute"]}
+        ],
+        "system_information": [
+          {"user": "prometheus", "allow": ["read"]},
+          {"group": "admins", "allow": ["read", "write"]}
+        ]
+      }
+
+serviceMonitor:
+  enabled: true
+  openMetrics:
+    enabled: true
+    username: prometheus
+
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-system
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8080

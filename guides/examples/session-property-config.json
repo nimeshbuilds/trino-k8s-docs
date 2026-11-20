@@ -1,0 +1,23 @@
+[
+  {
+    "group": "global\\.interactive\\..*",
+    "sessionProperties": {
+      "query_max_execution_time": "15m",
+      "query_max_scan_physical_bytes": "5TB"
+    }
+  },
+  {
+    "group": "global\\.scheduled",
+    "sessionProperties": {
+      "query_max_execution_time": "4h"
+    }
+  },
+  {
+    "group": "global\\.automation\\..*",
+    "sessionProperties": {
+      "query_max_execution_time": "5m",
+      "query_max_scan_physical_bytes": "500GB",
+      "query_max_planning_time": "1m"
+    }
+  }
+]

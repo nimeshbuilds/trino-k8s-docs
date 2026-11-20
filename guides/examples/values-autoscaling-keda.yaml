@@ -1,0 +1,63 @@
+# Worker autoscaling with KEDA on Trino query metrics.
+# Chart: trino 1.45.0 (Trino 484). Layer on top of another values file.
+#
+# Needs: KEDA installed, Prometheus scraping the coordinator (serviceMonitor.enabled),
+# and the Prometheus address below replaced with yours.
+# Metric names are those of the built-in OpenMetrics endpoint. With the
+# jmx.exporter sidecar the names lose the "name_" segment.
+# See guides/08-scaling-and-graceful-shutdown.md.
+#
+# IMPORTANT: Helm merges maps but replaces lists. additionalConfigProperties
+# (and env, additionalExchangeManagerProperties) are lists. If your base file
+# also sets them, copy the entries below into the base file's list instead of
+# relying on layering, or the base entries are lost.
+
+server:
+  # ignored for replica count while KEDA is enabled
+  workers: 2
+  keda:
+    enabled: true
+    pollingInterval: 30
+    cooldownPeriod: 600
+    minReplicaCount: 2
+    maxReplicaCount: 20
+    advanced:
+      horizontalPodAutoscalerConfig:
+        behavior:
+          scaleDown:
+            stabilizationWindowSeconds: 600
+            policies:
+              - type: Pods
+                value: 1
+                periodSeconds: 120
+    triggers:
+      # scale out when queries wait
+      - type: prometheus
+        metricType: Value
+        metadata:
+          serverAddress: http://prometheus-operated.monitoring.svc:9090
+          metricName: trino_queued_queries
+          threshold: "5"
+          query: >-
+            sum(avg_over_time(trino_execution_name_QueryManager_QueuedQueries{service={{ include "trino.fullname" . | quote }}}[1m]))
+      # scale with concurrency: one worker per four running queries
+      - type: prometheus
+        metricType: AverageValue
+        metadata:
+          serverAddress: http://prometheus-operated.monitoring.svc:9090
+          metricName: trino_running_queries
+          threshold: "4"
+          query: >-
+            sum(avg_over_time(trino_execution_name_QueryManager_RunningQueries{service={{ include "trino.fullname" . | quote }}}[1m]))
+
+worker:
+  gracefulShutdown:
+    enabled: true
+    gracePeriodSeconds: 60
+    user: admin
+  terminationGracePeriodSeconds: 3600
+  podDisruptionBudget:
+    maxUnavailable: 1
+
+serviceMonitor:
+  enabled: true

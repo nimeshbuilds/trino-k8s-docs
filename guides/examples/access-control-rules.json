@@ -1,0 +1,132 @@
+{
+  "catalogs": [
+    {
+      "group": "admins",
+      "catalog": ".*",
+      "allow": "all"
+    },
+    {
+      "group": "analysts",
+      "catalog": "(hive|iceberg)",
+      "allow": "read-only"
+    },
+    {
+      "group": "pipelines",
+      "catalog": "(hive|iceberg)",
+      "allow": "all"
+    },
+    {
+      "catalog": "system",
+      "allow": "read-only"
+    }
+  ],
+  "schemas": [
+    {
+      "group": "admins",
+      "schema": ".*",
+      "owner": true
+    },
+    {
+      "group": "pipelines",
+      "catalog": "(hive|iceberg)",
+      "schema": "staging_.*",
+      "owner": true
+    },
+    {
+      "owner": false
+    }
+  ],
+  "tables": [
+    {
+      "group": "admins",
+      "privileges": [
+        "SELECT",
+        "INSERT",
+        "DELETE",
+        "UPDATE",
+        "OWNERSHIP",
+        "GRANT_SELECT"
+      ]
+    },
+    {
+      "group": "pipelines",
+      "catalog": "(hive|iceberg)",
+      "privileges": [
+        "SELECT",
+        "INSERT",
+        "DELETE",
+        "UPDATE",
+        "OWNERSHIP"
+      ]
+    },
+    {
+      "group": "analysts",
+      "catalog": "(hive|iceberg)",
+      "schema": "restricted",
+      "privileges": []
+    },
+    {
+      "group": "analysts",
+      "catalog": "(hive|iceberg)",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "catalog": "system",
+      "privileges": [
+        "SELECT"
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "group": "admins",
+      "allow": [
+        "execute",
+        "kill",
+        "view"
+      ]
+    },
+    {
+      "allow": [
+        "execute"
+      ]
+    }
+  ],
+  "system_session_properties": [
+    {
+      "group": "admins",
+      "allow": true
+    },
+    {
+      "property": "query_max_(execution_time|run_time|memory|total_memory|scan_physical_bytes|cpu_time)",
+      "allow": false
+    },
+    {
+      "allow": true
+    }
+  ],
+  "impersonation": [
+    {
+      "original_user": "bi-service",
+      "new_user": ".*",
+      "allow": true
+    }
+  ],
+  "system_information": [
+    {
+      "user": "prometheus",
+      "allow": [
+        "read"
+      ]
+    },
+    {
+      "group": "admins",
+      "allow": [
+        "read",
+        "write"
+      ]
+    }
+  ]
+}

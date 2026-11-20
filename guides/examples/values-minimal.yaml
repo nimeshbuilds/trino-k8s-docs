@@ -1,0 +1,46 @@
+# Smallest sensible Trino cluster with explicit sizing.
+# Chart: trino 1.45.0 (Trino 484).
+# Install: helm install trino trino/trino -n trino --version 1.45.0 -f values-minimal.yaml
+#
+# One coordinator, two workers, the built-in tpch and tpcds catalogs.
+# No authentication. Keep the Service internal.
+
+image:
+  tag: "484"
+
+server:
+  workers: 2
+  config:
+    query:
+      # query.max-memory: user memory one query may use across the cluster
+      maxMemory: "8GB"
+
+coordinator:
+  jvm:
+    maxHeapSize: "6G"
+  config:
+    query:
+      # must satisfy: maxMemoryPerNode + heap headroom (30% of heap by default) < heap
+      maxMemoryPerNode: "2GB"
+  resources:
+    requests:
+      cpu: "2"
+      memory: 8Gi
+    limits:
+      memory: 8Gi
+
+worker:
+  jvm:
+    maxHeapSize: "12G"
+  config:
+    query:
+      maxMemoryPerNode: "5GB"
+  resources:
+    requests:
+      cpu: "4"
+      memory: 16Gi
+    limits:
+      memory: 16Gi
+
+additionalConfigProperties:
+  - query.max-execution-time=2h

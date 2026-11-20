@@ -1,0 +1,29 @@
+# Fault-tolerant execution with task retries and an S3 exchange.
+# Chart: trino 1.45.0 (Trino 484). Layer on top of another values file:
+#   helm upgrade trino trino/trino -n trino --version 1.45.0 \
+#     -f values-eks-glue-s3.yaml -f values-fault-tolerant.yaml
+#
+# Replace the bucket name and region. The Trino IAM role needs read, write,
+# delete and list on the bucket. Add a lifecycle rule that expires objects.
+# See guides/09-fault-tolerant-execution.md.
+#
+# IMPORTANT: Helm merges maps but replaces lists. additionalConfigProperties
+# (and env, additionalExchangeManagerProperties) are lists. If your base file
+# also sets them, copy the entries below into the base file's list instead of
+# relying on layering, or the base entries are lost.
+
+server:
+  exchangeManager:
+    name: filesystem
+    baseDir:
+      - s3://my-trino-exchange
+
+additionalExchangeManagerProperties:
+  - exchange.s3.region=us-east-1
+
+additionalConfigProperties:
+  - retry-policy=TASK
+  - task.low-memory-killer.policy=total-reservation-on-blocked-nodes
+  # initial memory estimate per task used for bin-packing; default 5GB
+  - fault-tolerant-execution-task-memory=4GB
+  - openmetrics.jmx-object-names=trino.plugin.exchange.filesystem:name=FileSystemExchangeStats|trino.plugin.exchange.filesystem.s3:name=S3FileSystemExchangeStorageStats

@@ -1,0 +1,42 @@
+Trino on Kubernetes documentation
+Copyright 2026 the authors of this repository
+
+This repository is licensed under the Apache License, Version 2.0.
+
+It includes unmodified copies of documentation and configuration files from
+the following projects, each licensed under the Apache License, Version 2.0.
+The copied files are under upstream/, with each project's LICENSE file kept
+alongside them.
+
+1. Trino
+   https://github.com/trinodb/trino
+   Copyright the Trino authors and contributors.
+   Copied to upstream/trino/.
+
+2. Trino Helm charts
+   https://github.com/trinodb/charts
+   Copyright the Trino authors and contributors.
+   Copied to upstream/charts/.
+
+3. Trino Gateway
+   https://github.com/trinodb/trino-gateway
+   Copyright the Trino Gateway authors and contributors.
+   Copied to upstream/trino-gateway/.
+
+4. Data on EKS
+   https://github.com/awslabs/data-on-eks
+   The project's NOTICE file reads:
+     Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+   Copied to upstream/data-on-eks/, including that NOTICE file.
+
+The files under guides/ are original documentation written for this
+repository. The reference pages under guides/reference/ contain names,
+types, default values and one-line descriptions of configuration properties,
+session properties, error codes, plugin names and Helm values that were
+extracted from the projects listed above.
+
+See PROVENANCE.md for exact commits, copied paths and exclusions.
+
+Trino is a trademark of its owner. This repository is not affiliated with or
+endorsed by the Trino project, the Trino Software Foundation, or
+Amazon Web Services.

@@ -1,0 +1,107 @@
+# Data lake on Amazon S3 with AWS Glue, on EKS.
+# Chart: trino 1.45.0 (Trino 484).
+#
+# Replace: the region, the IAM role ARN (IRSA only), node selectors and sizes.
+# The ServiceAccount needs an IAM role through EKS Pod Identity or IRSA with
+# access to Glue and to the data buckets. See guides/06-catalogs-glue-s3.md.
+#
+# Sizing below assumes worker nodes with 64 GiB and coordinator nodes with 32 GiB.
+# See guides/05-memory-and-jvm-sizing.md for the arithmetic.
+
+image:
+  tag: "484"
+
+serviceAccount:
+  create: true
+  name: trino
+  # IRSA only. Remove the annotation when using EKS Pod Identity.
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::111122223333:role/trino-lake
+
+server:
+  workers: 6
+  config:
+    query:
+      maxMemory: "70GB"
+
+coordinator:
+  jvm:
+    maxHeapSize: "22G"
+  config:
+    query:
+      maxMemoryPerNode: "8GB"
+  resources:
+    requests:
+      cpu: "7"
+      memory: 28Gi
+    limits:
+      memory: 28Gi
+  nodeSelector:
+    karpenter.sh/capacity-type: on-demand
+  annotations:
+    karpenter.sh/do-not-disrupt: "true"
+
+worker:
+  jvm:
+    maxHeapSize: "46G"
+  config:
+    memory:
+      heapHeadroomPerNode: "12GB"
+    query:
+      maxMemoryPerNode: "24GB"
+  resources:
+    requests:
+      cpu: "15"
+      memory: 58Gi
+    limits:
+      memory: 58Gi
+  # Workers finish their tasks before exiting. See guides/08-scaling-and-graceful-shutdown.md.
+  gracefulShutdown:
+    enabled: true
+    gracePeriodSeconds: 60
+    user: admin
+  terminationGracePeriodSeconds: 3600
+  podDisruptionBudget:
+    maxUnavailable: 1
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: worker
+
+additionalConfigProperties:
+  # keep below worker.terminationGracePeriodSeconds
+  - query.max-execution-time=45m
+  - query.client.timeout=10m
+  # JVM beans next to the Trino beans on /metrics
+  - openmetrics.jmx-object-names=java.lang:type=Memory|java.lang:type=GarbageCollector,*
+  # the HTTP request log is a file inside the pod
+  - http-server.log.enabled=false
+
+catalogs:
+  # remove the chart's sample catalogs
+  tpch: null
+  tpcds: null
+  hive: |
+    connector.name=hive
+    hive.metastore=glue
+    hive.metastore.glue.region=us-east-1
+    fs.s3.enabled=true
+    s3.region=us-east-1
+    hive.metastore-cache-ttl=5m
+    hive.metastore-refresh-interval=1m
+    hive.max-partitions-per-scan=100000
+  iceberg: |
+    connector.name=iceberg
+    iceberg.catalog.type=glue
+    hive.metastore.glue.region=us-east-1
+    fs.s3.enabled=true
+    s3.region=us-east-1
+
+serviceMonitor:
+  enabled: true
+  labels:
+    prometheus: kube-prometheus
+  interval: 30s
